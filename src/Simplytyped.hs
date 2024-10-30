@@ -50,6 +50,14 @@ conversion' idxs (LLet x t1 t2) = let
                                   in
                                     Let t1' t2'
 
+conversion' idxs LZero            = Zero
+conversion' idxs (LSuc t)         = Suc (conversion' idxs t)
+conversion' idxs (LRec t1 t2 t3)  = Rec t1' t2' t3'
+                                    where
+                                      t1' = conversion' idxs t1
+                                      t2' = conversion' idxs t2
+                                      t3' = conversion' idxs t3
+
 
 ----------------------------
 --- evaluador de términos
@@ -67,10 +75,23 @@ sub _ _ (Free n   )           = Free n
 sub i t (u   :@: v)           = sub i t u :@: sub i t v
 sub i t (Lam t'  u)           = Lam t' (sub (i + 1) t u)
 sub i t (Let t1 t2)           = Let (sub i t t1) (sub (i + 1) t t2)
+sub i t Zero                  = Zero
+sub i t (Suc t')              = Suc (sub i t t')
+sub i t (Rec t1 t2 t3)        = Rec t1' t2' t3'
+                                where
+                                  t1' = sub i t t1
+                                  t2' = sub i t t2
+                                  t3' = sub i t t3
+
 
 -- convierte un valor en el término equivalente
 quote :: Value -> Term
-quote (VLam t f) = Lam t f
+quote (VLam t f)       = Lam t f
+quote (VNum vn)        = numvalToTerm vn
+
+numvalToTerm :: NumVal -> Term
+numvalToTerm NZero     = Zero
+numvalToTerm (NSuc nv) = Suc (numvalToTerm nv)
 
 -- evalúa un término en un entorno dado
 -- NameEnv Value Type asigna a cada variable una tupla con su valor y su tipo.
@@ -95,8 +116,15 @@ eval ne (Let t1 t2) = let
                       in
                         eval ne (sub 0 t1' t2)
 
+eval ne Zero        = VNum NZero
+eval ne (Suc t)     = VNum (NSuc t')
+                      where (VNum t') = eval ne t
 
-
+eval ne (Rec t1 t2 t3) = case eval ne t3 of
+                          VNum NZero     -> eval ne t1
+                          VNum (NSuc nv) -> eval ne ((t2 :@: (Rec t1 t2 nv')) :@: nv')
+                                            where nv' = numvalToTerm nv
+                        
 
 ----------------------
 --- type checker
@@ -134,7 +162,7 @@ notfoundError :: Name -> Either String Type
 notfoundError n = err $ show n ++ " no está definida."
 
 -- infiere el tipo de un término a partir de un entorno local de variables y un entorno global
-infer' :: Context -> NameEnv Value Type -> Term -> Either String Type
+infer' :: Context -> NameEnv Value Type -> Term -> Either String   Type
 infer' c _ (Bound i) = ret (c !! i)
 infer' _ e (Free  n) = case Prelude.lookup n e of
   Nothing     -> notfoundError n
@@ -146,4 +174,13 @@ infer' c e (t :@: u) = infer' c e t >>= \tt -> infer' c e u >>= \tu ->
 infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
 infer' c e (Let t1 t2) = infer' c e t1 >>= \tt1 -> infer' (tt1 : c) e t2 >>= \tt2 -> ret tt2
 
+infer' c e Zero     = ret NatT
+infer' c e (Suc t)  = infer' c e t >>= \tt -> case tt of
+                                                NatT -> ret NatT
+                                                _    -> matchError NatT tt
+infer' c e (Rec t1 t2 t3) = infer' c e t3 >>= \tt3 -> case tt3 of
+                                                      NatT -> infer' c e t1 >>= \tt1 -> infer' c e t2 >>= \tt2 -> if tt2 == FunT tt1 (FunT NatT tt1)
+                                                                                                                  then ret tt1
+                                                                                                                  else matchError (FunT tt1 (FunT NatT tt1)) tt2 
+                                                      _    -> matchError NatT tt3
 

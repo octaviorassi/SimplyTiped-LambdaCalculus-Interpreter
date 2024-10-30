@@ -27,11 +27,17 @@ import Data.Char
     DEF     { TDef }
     LET     { TLet }
     IN      { TIn }
+    ZERO    { TZero }
+    SUC     { TSuc } -- ? por que no es TSuc $$? cual es la diferencia de TSuc con TVar
+    R       { TRec }
+
     
 
 %left '=' 
 %right '->'
 %right '\\' '.' LET IN 
+%right SUC
+%right R        -- ? right o left?
 
 %%
 
@@ -42,6 +48,8 @@ Defexp  : DEF VAR '=' Exp              { Def $2 $4 }
 Exp     :: { LamTerm }
         : '\\' VAR ':' Type '.' Exp    { LAbs $2 $4 $6 }
         | LET VAR '=' Exp IN Exp       { LLet $2 $4 $6 }
+        | SUC Exp                      { LSuc $2 } 
+        | R Atom Atom Exp              { LRec $2 $3 $4 }       
         | NAbs                         { $1 }
         
 NAbs    :: { LamTerm }
@@ -51,6 +59,7 @@ NAbs    :: { LamTerm }
 Atom    :: { LamTerm }
         : VAR                          { LVar $1 }  
         | '(' Exp ')'                  { $2 }
+        | ZERO                         { LZero }
 
 Type    : TYPEE                        { EmptyT }
         | Type '->' Type               { FunT $1 $3 }
@@ -101,6 +110,9 @@ data Token = TVar String
                | TEOF
                | TLet
                | TIn
+               | TZero
+               | TSuc
+               | TRec
                deriving Show
 
 ----------------------------------
@@ -110,6 +122,7 @@ lexer cont s = case s of
                     (c:cs)
                           | isSpace c -> lexer cont cs
                           | isAlpha c -> lexVar (c:cs)
+                    ('0':cs) -> cont TZero cs
                     ('-':('-':cs)) -> lexer cont $ dropWhile ((/=) '\n') cs
                     ('{':('-':cs)) -> consumirBK 0 0 cont cs	
                     ('-':('}':cs)) -> \ line -> Failed $ "Línea "++(show line)++": Comentario no abierto"
@@ -128,6 +141,8 @@ lexer cont s = case s of
                               ("def",rest)  -> cont TDef rest
                               ("let", rest) -> cont TLet rest
                               ("in", rest)  -> cont TIn rest
+                              ("suc", rest) -> cont TSuc rest
+                              ("R", rest)   -> cont TRec rest
                               (var,rest)    -> cont (TVar var) rest
                           consumirBK anidado cl cont s = case s of
                               ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs

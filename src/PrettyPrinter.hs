@@ -45,6 +45,14 @@ pp ii vs (Let t1 t2) =
   <+> text "in"
   <+> pp (ii + 1) vs t2
 
+pp ii vs Zero    = text "0"
+pp ii vs (Suc t) = text "Suc" <+> pp ii vs t
+pp ii vs (Rec t1 t2 t3) = 
+  text "R" 
+  <+> parensIf (not (isZero t1)) (pp ii vs t1) 
+  <+> parensIf (not (isZero t2)) (pp ii vs t2) -- ? no deberia ser nunca zero, pero bueno, el pretty printer no deberia chequear eso supongo
+  <+> parensIf (not (isZero t3)) (pp ii vs t3)
+
 isLam :: Term -> Bool
 isLam (Lam _ _) = True
 isLam _         = False
@@ -52,6 +60,14 @@ isLam _         = False
 isApp :: Term -> Bool
 isApp (_ :@: _) = True
 isApp _         = False
+
+isSuc :: Term -> Bool
+isSuc (Suc _) = True
+isSuc _       = False
+
+isZero :: Term -> Bool
+isZero Zero = True
+isZero _    = False
 
 -- pretty-printer de tipos
 printType :: Type -> Doc
@@ -70,6 +86,9 @@ fv (Free  (Global n)) = [n]
 fv (t   :@: u       ) = fv t ++ fv u
 fv (Lam _   u       ) = fv u
 fv (Let t1  t2      ) = fv t1 ++ fv t2
+fv Zero               = []
+fv (Suc t           ) = fv t
+fv (Rec t1  t2   t3 ) = fv t1 ++ fv t2 ++ fv t3
 
 ---
 printTerm :: Term -> Doc
