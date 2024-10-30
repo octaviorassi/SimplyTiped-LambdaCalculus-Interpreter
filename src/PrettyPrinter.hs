@@ -1,4 +1,4 @@
-module PrettyPrinter
+xmodule PrettyPrinter
   ( printTerm  ,     -- pretty printer para terminos
     printType        -- pretty printer para tipos
   )

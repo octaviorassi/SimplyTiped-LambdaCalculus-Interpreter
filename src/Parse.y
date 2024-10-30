@@ -25,7 +25,7 @@ import Data.Char
     VAR     { TVar $$ }
     INT     { TInt $$ }
     TYPEE   { TTypeE }
-    TYPEN   { TTypeE }
+    TYPEN   { TTypeN }
     TYPEL   { TTypeL }
     DEF     { TDef }
     LET     { TLet }
@@ -163,19 +163,18 @@ lexer cont s = case s of
                     unknown -> \line -> Failed $ 
                      "Línea "++(show line)++": No se puede reconocer "++(show $ take 10 unknown)++ "..."
                     where lexVar cs = case span isAlpha cs of
-                              ("E",rest)    -> cont TTypeE rest
-                              ("Nat", rest) -> cont TTypeN rest
-                              ("List", rest) -> cont TTypeL rest
-                              ("def",rest)  -> cont TDef rest
-                              ("let", rest) -> cont TLet rest
-                              ("in", rest)  -> cont TIn rest
-                              ("suc", rest) -> cont TSuc rest
-                              ("R", rest)   -> cont TRec rest
+                              ("E",rest)     -> cont TTypeE rest
+                              ("Nat", rest)  -> cont TTypeN rest   
+                              ("List", rest) -> cont TTypeL rest  
+                              ("def",rest)   -> cont TDef rest
+                              ("let", rest)  -> cont TLet rest
+                              ("in", rest)   -> cont TIn rest
+                              ("suc", rest)  -> cont TSuc rest
+                              ("R", rest)    -> cont TRec rest
                               ("nil", rest)  -> cont TNil rest
                               ("cons", rest) -> cont TCons rest
-                              ("RL", rest)  -> cont TRecL rest  
-
-                              (var,rest)    -> cont (TVar var) rest
+                              ("RL", rest)   -> cont TRecL rest
+                              (var,rest)     -> cont (TVar var) rest
                           consumirBK anidado cl cont s = case s of
                               ('-':('-':cs)) -> consumirBK anidado cl cont $ dropWhile ((/=) '\n') cs
                               ('{':('-':cs)) -> consumirBK (anidado+1) cl cont cs	
@@ -183,7 +182,7 @@ lexer cont s = case s of
                                                   0 -> \line -> lexer cont cs (line+cl)
                                                   _ -> consumirBK (anidado-1) cl cont cs
                               ('\n':cs) -> consumirBK anidado (cl+1) cont cs
-                              (_:cs) -> consumirBK anidado cl cont cs     
+                              (_:cs) -> consumirBK anidado cl cont cs  
 
                           lexInt cs = let (num, rest) = span isDigit cs
                                       in cont (TInt (read num)) rest
