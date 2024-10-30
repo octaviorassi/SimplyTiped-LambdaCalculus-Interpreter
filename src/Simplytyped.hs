@@ -64,7 +64,19 @@ quote (VLam t f) = Lam t f
 -- evalúa un término en un entorno dado
 -- NameEnv Value Type asigna a cada variable una tupla con su valor y su tipo.
 eval :: NameEnv Value Type -> Term -> Value
+eval ne (Bound j)   = error "bounded variables shall not be evaluated"
+eval ne (Free x)    = case Prelude.lookup x ne of
+                      Nothing -> error "free variable not found in name environment"
+                      Just (v, _)  -> v
 
+eval ne (t1 :@: t2) = let
+                        (Lam _ f) = quote $ eval ne t1
+                        t2' = eval ne t2
+                        t1sub = sub 0 (quote t2') f
+                      in
+                        eval ne t1sub
+
+eval ne (Lam ty t)  = VLam ty t
 
 
 
