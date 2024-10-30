@@ -58,7 +58,6 @@ Exp     :: { LamTerm }
         | LET VAR '=' Exp IN Exp       { LLet $2 $4 $6 }
         | SUC Exp                      { LSuc $2 } 
         | R Atom Atom Exp              { LRec $2 $3 $4 }
-        | NIL                          { LNil }
         | CONS Atom Exp                { LCons $2 $3 }
         | RL Atom Atom Exp             { LRecL $2 $3 $4}       
         | NAbs                         { $1 }
@@ -71,6 +70,8 @@ Atom    :: { LamTerm }
         : VAR                          { LVar $1 }  
         | '(' Exp ')'                  { $2 }
         | ZERO                         { LZero }
+        | NIL                          { LNil }
+
 
 Type    : TYPEE                        { EmptyT }
         | TYPEN                        { NatT }
