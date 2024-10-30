@@ -15,20 +15,41 @@ import           Prelude                 hiding ( (>>=) )
 import           Text.PrettyPrint.HughesPJ      ( render )
 import           PrettyPrinter
 import           Common
+import           Data.Map.Strict         as M
 
 -----------------------
 -- conversion
 -----------------------
 
+type BoundedVars = M.Map String Int
+
 -- conversion a términos localmente sin nombres
 conversion :: LamTerm -> Term
-conversion = undefined
+conversion = conversion' M.empty
+
+conversion' :: BoundedVars -> LamTerm -> Term
+conversion' idxs (LVar x)       = case M.lookup x idxs of
+                                    Just i  -> Bound i
+                                    Nothing -> Free (Global x)
+
+conversion' idxs (LAbs x ty t)  = let idxs'   = M.map succ idxs
+                                      idxs''  = M.insert x 0 idxs'
+                                  in  Lam ty (conversion' idxs'' t)
+
+conversion' idxs (LApp t1 t2)   = t1' :@: t2'
+                                  where
+                                    t1' = conversion' idxs t1
+                                    t2' = conversion' idxs t2
 
 ----------------------------
 --- evaluador de términos
 ----------------------------
 
 -- substituye una variable por un término en otro término
+-- el Int indica bajo cuantas abstracciones estamos sustituyendo; en principio
+-- siempre lo llamaremos con 0, y a medida que nos metemos dentro de abstracciones
+-- este indice va aumentando para poder llevar registro de como interpretar las variables.
+
 sub :: Int -> Term -> Term -> Term
 sub i t (Bound j) | i == j    = t
 sub _ _ (Bound j) | otherwise = Bound j
@@ -41,8 +62,9 @@ quote :: Value -> Term
 quote (VLam t f) = Lam t f
 
 -- evalúa un término en un entorno dado
+-- NameEnv Value Type asigna a cada variable una tupla con su valor y su tipo.
 eval :: NameEnv Value Type -> Term -> Value
-eval = undefined
+
 
 
 
@@ -85,7 +107,7 @@ notfoundError n = err $ show n ++ " no está definida."
 -- infiere el tipo de un término a partir de un entorno local de variables y un entorno global
 infer' :: Context -> NameEnv Value Type -> Term -> Either String Type
 infer' c _ (Bound i) = ret (c !! i)
-infer' _ e (Free  n) = case lookup n e of
+infer' _ e (Free  n) = case Prelude.lookup n e of
   Nothing     -> notfoundError n
   Just (_, t) -> ret t
 infer' c e (t :@: u) = infer' c e t >>= \tt -> infer' c e u >>= \tu ->
