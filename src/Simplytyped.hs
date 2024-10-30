@@ -41,6 +41,16 @@ conversion' idxs (LApp t1 t2)   = t1' :@: t2'
                                     t1' = conversion' idxs t1
                                     t2' = conversion' idxs t2
 
+conversion' idxs (LLet x t1 t2) = let
+                                    idxs' =  M.map succ idxs
+                                    idxs'' = M.insert x 0 idxs' 
+
+                                    t1' = conversion' idxs    t1   -- no usamos idxs'' porque idxs'' tiene a la lambda falsa de t2
+                                    t2' = conversion' idxs''  t2 
+                                  in
+                                    Let t1' t2'
+
+
 ----------------------------
 --- evaluador de términos
 ----------------------------
@@ -56,6 +66,7 @@ sub _ _ (Bound j) | otherwise = Bound j
 sub _ _ (Free n   )           = Free n
 sub i t (u   :@: v)           = sub i t u :@: sub i t v
 sub i t (Lam t'  u)           = Lam t' (sub (i + 1) t u)
+sub i t (Let t1 t2)           = Let (sub i t t1) (sub (i + 1) t t2)
 
 -- convierte un valor en el término equivalente
 quote :: Value -> Term
@@ -65,9 +76,12 @@ quote (VLam t f) = Lam t f
 -- NameEnv Value Type asigna a cada variable una tupla con su valor y su tipo.
 eval :: NameEnv Value Type -> Term -> Value
 eval ne (Bound j)   = error "bounded variables shall not be evaluated"
+
 eval ne (Free x)    = case Prelude.lookup x ne of
                       Nothing -> error "free variable not found in name environment"
                       Just (v, _)  -> v
+
+eval ne (Lam ty t)  = VLam ty t
 
 eval ne (t1 :@: t2) = let
                         (Lam _ f) = quote $ eval ne t1
@@ -76,7 +90,10 @@ eval ne (t1 :@: t2) = let
                       in
                         eval ne t1sub
 
-eval ne (Lam ty t)  = VLam ty t
+eval ne (Let t1 t2) = let
+                        t1' = quote $ eval ne t1
+                      in
+                        eval ne (sub 0 t1' t2)
 
 
 
@@ -127,5 +144,6 @@ infer' c e (t :@: u) = infer' c e t >>= \tt -> infer' c e u >>= \tu ->
     FunT t1 t2 -> if (tu == t1) then ret t2 else matchError t1 tu
     _          -> notfunError tt
 infer' c e (Lam t u) = infer' (t : c) e u >>= \tu -> ret $ FunT t tu
+infer' c e (Let t1 t2) = infer' c e t1 >>= \tt1 -> infer' (tt1 : c) e t2 >>= \tt2 -> ret tt2
 
 
