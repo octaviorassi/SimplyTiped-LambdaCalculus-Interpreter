@@ -69,6 +69,7 @@ fv (Bound _         ) = []
 fv (Free  (Global n)) = [n]
 fv (t   :@: u       ) = fv t ++ fv u
 fv (Lam _   u       ) = fv u
+fv (Let t1  t2      ) = fv t1 ++ fv t2
 
 ---
 printTerm :: Term -> Doc
