@@ -23,6 +23,7 @@ import Data.Char
     ')'     { TClose }
     '->'    { TArrow }
     VAR     { TVar $$ }
+    INT     { TInt $$ }
     TYPEE   { TTypeE }
     TYPEN   { TTypeE }
     TYPEL   { TTypeL }
@@ -57,6 +58,7 @@ Exp     :: { LamTerm }
         : '\\' VAR ':' Type '.' Exp    { LAbs $2 $4 $6 }
         | LET VAR '=' Exp IN Exp       { LLet $2 $4 $6 }
         | SUC Exp                      { LSuc $2 } 
+        | INT                          { intToSucc $1 }
         | R Atom Atom Exp              { LRec $2 $3 $4 }
         | CONS Atom Exp                { LCons $2 $3 }
         | RL Atom Atom Exp             { LRecL $2 $3 $4}       
@@ -111,7 +113,12 @@ catchP m k = \s l -> case m s l of
 happyError :: P a
 happyError = \ s i -> Failed $ "Línea "++(show (i::LineNumber))++": Error de parseo\n"++(s)
 
+intToSucc :: Int -> LamTerm
+intToSucc 0 = LZero
+intToSucc n = LSuc (intToSucc (n - 1))
+
 data Token = TVar String
+               | TInt Int 
                | TTypeE
                | TTypeN
                | TTypeL
@@ -141,7 +148,7 @@ lexer cont s = case s of
                     (c:cs)
                           | isSpace c -> lexer cont cs
                           | isAlpha c -> lexVar (c:cs)
-                    ('0':cs) -> cont TZero cs
+                          | isDigit c -> lexInt (c:cs)
                     ('-':('-':cs)) -> lexer cont $ dropWhile ((/=) '\n') cs
                     ('{':('-':cs)) -> consumirBK 0 0 cont cs	
                     ('-':('}':cs)) -> \ line -> Failed $ "Línea "++(show line)++": Comentario no abierto"
@@ -177,8 +184,13 @@ lexer cont s = case s of
                                                   _ -> consumirBK (anidado-1) cl cont cs
                               ('\n':cs) -> consumirBK anidado (cl+1) cont cs
                               (_:cs) -> consumirBK anidado cl cont cs     
+
+                          lexInt cs = let (num, rest) = span isDigit cs
+                                      in cont (TInt (read num)) rest
+
                                            
 stmts_parse s = parseStmts s 1
 stmt_parse s = parseStmt s 1
 term_parse s = term s 1
+
 }

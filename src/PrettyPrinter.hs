@@ -47,7 +47,7 @@ pp ii vs (Let t1 t2) =
   <+> pp (ii + 1) vs t2
 
 pp ii vs Zero    = text "0"
-pp ii vs (Suc t) = text "Suc" <+> parensIf (needParens t) (pp ii vs t)
+pp ii vs n@(Suc t) = text (show (sucToInt n))
 pp ii vs (Rec t1 t2 t3) = 
   text "R" 
   <+> parensIf (needParens t1) (pp ii vs t1) 
@@ -89,6 +89,11 @@ isNil _   = False
 
 needParens :: Term -> Bool
 needParens t = not (isVar t || isZero t || isNil t)
+
+sucToInt :: Term -> Int
+sucToInt Zero     = 0
+sucToInt (Suc t)  = 1 + (sucToInt t)
+sucToInt _        = error "error: sucToInt received a non-numeric term"
 
 -- pretty-printer de tipos
 printType :: Type -> Doc

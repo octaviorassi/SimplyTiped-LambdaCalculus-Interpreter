@@ -33,7 +33,7 @@ conversion' idxs (LVar x)         = case M.lookup x idxs of
                                     Nothing -> Free (Global x)
 
 conversion' idxs (LAbs x ty t)    = let idxs'   = M.map succ idxs
-                                      idxs''  = M.insert x 0 idxs'
+                                        idxs''  = M.insert x 0 idxs'
                                   in  Lam ty (conversion' idxs'' t)
 
 conversion' idxs (LApp t1 t2)     = t1' :@: t2'
